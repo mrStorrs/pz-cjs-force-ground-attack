@@ -1,0 +1,7 @@
+name=CJS Force Ground Attack
+id=cjsForceGroundAttack
+description=Forces manual floor attack targeting whenever the Manual Floor Attack key is held.
+poster=poster.png
+author=CJ Storrs
+modversion=0.1.0
+versionMin=42.0.0

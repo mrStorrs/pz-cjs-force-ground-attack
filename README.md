@@ -1,0 +1,13 @@
+# CJS Force Ground Attack
+
+Build 42 Project Zomboid mod that makes the Manual Floor Attack key authoritative while held.
+
+Behavior:
+
+- Holding the Manual Floor Attack key forces `setAimAtFloor(true)` every tick.
+- When an attack starts while the key is held, the mod also forces the current attack vars to target the floor and disables close-kill selection.
+- Armed attacks stay weapon attacks unless the Shove/Stomp key is held.
+- Bare-hands attacks are treated as stomp/shove so the no-weapon path still attacks the ground.
+- The hook clears its forced animation variables after the key is released and the current attack is finished.
+
+The mod uses B42.19 public `AttackVars` fields directly and avoids runtime Java reflection helpers.
