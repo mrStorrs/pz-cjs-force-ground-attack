@@ -4,6 +4,7 @@ local SHOVE_STOMP_KEY = "Melee"
 
 local warned = {}
 local forcedPlayers = setmetatable({}, { __mode = "k" })
+local attackVarFields = {}
 
 local function warnOnce(key, message)
     if warned[key] then return end
@@ -45,17 +46,78 @@ local function setDoShove(player, value)
     end)
 end
 
+local function findAttackVarField(attackVars, fieldName)
+    if attackVarFields[fieldName] ~= nil then
+        return attackVarFields[fieldName] or nil
+    end
+
+    if not getNumClassFields or not getClassField then
+        warnOnce("missingReflection", "Reflection helpers are not available; AttackVars fields cannot be forced")
+        attackVarFields[fieldName] = false
+        return nil
+    end
+
+    local fieldCount = safeCall("getNumClassFields.AttackVars", function()
+        return getNumClassFields(attackVars)
+    end)
+    if not fieldCount then
+        attackVarFields[fieldName] = false
+        return nil
+    end
+
+    for index = 0, fieldCount - 1 do
+        local field = safeCall("getClassField.AttackVars." .. tostring(index), function()
+            return getClassField(attackVars, index)
+        end)
+        if field and tostring(field):match("%." .. fieldName .. "$") then
+            attackVarFields[fieldName] = field
+            return field
+        end
+    end
+
+    warnOnce("missingAttackVarField." .. fieldName, "AttackVars." .. fieldName .. " field was not found")
+    attackVarFields[fieldName] = false
+    return nil
+end
+
+local function readAttackVarBoolean(attackVars, fieldName)
+    if not getClassFieldVal then return nil end
+
+    local field = findAttackVarField(attackVars, fieldName)
+    if not field then return nil end
+
+    return safeCall("getClassFieldVal.AttackVars." .. fieldName, function()
+        return getClassFieldVal(attackVars, field)
+    end) == true
+end
+
+local function setAttackVarBoolean(attackVars, fieldName, value)
+    if not attackVars then return end
+
+    if readAttackVarBoolean(attackVars, fieldName) == value then
+        return true
+    end
+
+    local field = findAttackVarField(attackVars, fieldName)
+    if not field then return false end
+
+    local ok = pcall(function()
+        field:setBoolean(attackVars, value)
+    end)
+    if ok and readAttackVarBoolean(attackVars, fieldName) == value then
+        return true
+    end
+
+    warnOnce("setAttackVars." .. fieldName, "Could not set AttackVars." .. fieldName)
+    return false
+end
+
 local function setAttackVars(attackVars, doShove)
     if not attackVars then return end
 
-    local ok, result = pcall(function()
-        attackVars.aimAtFloor = true
-        attackVars.closeKill = false
-        attackVars.doShove = doShove
-    end)
-    if ok then return end
-
-    warnOnce("setAttackVars", "Could not set public AttackVars fields: " .. tostring(result))
+    setAttackVarBoolean(attackVars, "aimAtFloor", true)
+    setAttackVarBoolean(attackVars, "closeKill", false)
+    setAttackVarBoolean(attackVars, "doShove", doShove)
 end
 
 local function getUseHandWeapon(player)
