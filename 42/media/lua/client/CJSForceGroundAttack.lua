@@ -2,12 +2,6 @@ local MOD_ID = "cjsForceGroundAttack"
 local MANUAL_FLOOR_KEY = "ManualFloorAtk"
 local SHOVE_STOMP_KEY = "Melee"
 
-local ATTACK_VAR_FIELDS = {
-    aimAtFloor = { "aimAtFloor", "bAimAtFloor" },
-    closeKill = { "closeKill", "bCloseKill" },
-    doShove = { "doShove", "bDoShove" },
-}
-
 local warned = {}
 local forcedPlayers = setmetatable({}, { __mode = "k" })
 
@@ -51,24 +45,17 @@ local function setDoShove(player, value)
     end)
 end
 
-local function setAttackVarField(attackVars, fieldGroup, value)
+local function setAttackVars(attackVars, doShove)
     if not attackVars then return end
 
-    local fields = ATTACK_VAR_FIELDS[fieldGroup]
-    if not fields then return end
+    local ok, result = pcall(function()
+        attackVars.aimAtFloor = true
+        attackVars.closeKill = false
+        attackVars.doShove = doShove
+    end)
+    if ok then return end
 
-    local lastError
-    for index = 1, #fields do
-        local fieldName = fields[index]
-        local ok, result = pcall(function()
-            attackVars[fieldName] = value
-        end)
-
-        if ok then return end
-        lastError = result
-    end
-
-    warnOnce("attackVar." .. fieldGroup, "Could not set AttackVars." .. fields[1] .. ": " .. tostring(lastError))
+    warnOnce("setAttackVars", "Could not set public AttackVars fields: " .. tostring(result))
 end
 
 local function getUseHandWeapon(player)
@@ -80,7 +67,7 @@ local function getUseHandWeapon(player)
 end
 
 local function isBareHands(weapon)
-    if not weapon or not weapon.isBareHands then return false end
+    if not weapon then return false end
 
     return safeCall("isBareHands", function()
         return weapon:isBareHands()
@@ -114,9 +101,7 @@ local function applyAttackVars(player, doShove)
     end)
     if not attackVars then return end
 
-    setAttackVarField(attackVars, "aimAtFloor", true)
-    setAttackVarField(attackVars, "closeKill", false)
-    setAttackVarField(attackVars, "doShove", doShove)
+    setAttackVars(attackVars, doShove)
 end
 
 local function forceGroundAttack(player, includeAttackVars)
