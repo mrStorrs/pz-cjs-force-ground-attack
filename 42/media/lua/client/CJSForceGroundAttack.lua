@@ -140,26 +140,12 @@ local function setAttackVarBoolean(attackVars, fieldName, value)
     return false
 end
 
-local function setAttackVarWeaponForShove(player, attackVars, doShove)
-    if not doShove then return end
-
-    local weapon = safeCall("getAttackingWeapon.groundShove", function()
-        return player:getAttackingWeapon()
-    end)
-    if not weapon then return end
-
-    safeCall("setAttackVars.weapon.groundShove", function()
-        attackVars:setWeapon(weapon)
-    end)
-end
-
-local function setAttackVars(player, attackVars, doShove)
+local function setAttackVars(attackVars, doShove)
     if not attackVars then return end
 
     setAttackVarBoolean(attackVars, "aimAtFloor", true)
     setAttackVarBoolean(attackVars, "closeKill", false)
     setAttackVarBoolean(attackVars, "doShove", doShove)
-    setAttackVarWeaponForShove(player, attackVars, doShove)
 end
 
 local function getUseHandWeapon(player)
@@ -205,7 +191,7 @@ local function applyAttackVars(player, doShove)
     end)
     if not attackVars then return end
 
-    setAttackVars(player, attackVars, doShove)
+    setAttackVars(attackVars, doShove)
 end
 
 local function forceGroundAttack(player, includeAttackVars)

@@ -3,5 +3,5 @@ id=cjsForceGroundAttack
 description=Forces manual floor attack targeting whenever the Manual Floor Attack key is held.
 poster=poster.png
 author=CJ Storrs
-modversion=0.1.1
+modversion=0.1.2
 versionMin=42.0.0
