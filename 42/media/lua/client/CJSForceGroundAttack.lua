@@ -20,12 +20,40 @@ local function safeCall(key, fn)
     return nil
 end
 
-local function isKeyDown(keyName)
+local function isBoundKeyDown(keyName)
     if not GameKeyboard or not GameKeyboard.isKeyDown then return false end
 
     return safeCall("isKeyDown." .. keyName, function()
         return GameKeyboard.isKeyDown(keyName)
     end) == true
+end
+
+local function normalizeButtonDown(value)
+    if value == nil then return nil end
+
+    return value == true
+end
+
+local function isManualFloorAttackDown(player)
+    if not player then return false end
+
+    local buttonDown = normalizeButtonDown(safeCall("isManualFloorAtkButtonDown", function()
+        return player:isManualFloorAtkButtonDown()
+    end))
+    if buttonDown ~= nil then return buttonDown end
+
+    return isBoundKeyDown(MANUAL_FLOOR_KEY)
+end
+
+local function isShoveStompButtonDown(player)
+    if not player then return false end
+
+    local buttonDown = normalizeButtonDown(safeCall("isMeleeButtonDown", function()
+        return player:isMeleeButtonDown()
+    end))
+    if buttonDown ~= nil then return buttonDown end
+
+    return isBoundKeyDown(SHOVE_STOMP_KEY)
 end
 
 local function setPlayerVariable(player, name, value)
@@ -112,12 +140,26 @@ local function setAttackVarBoolean(attackVars, fieldName, value)
     return false
 end
 
-local function setAttackVars(attackVars, doShove)
+local function setAttackVarWeaponForShove(player, attackVars, doShove)
+    if not doShove then return end
+
+    local weapon = safeCall("getAttackingWeapon.groundShove", function()
+        return player:getAttackingWeapon()
+    end)
+    if not weapon then return end
+
+    safeCall("setAttackVars.weapon.groundShove", function()
+        attackVars:setWeapon(weapon)
+    end)
+end
+
+local function setAttackVars(player, attackVars, doShove)
     if not attackVars then return end
 
     setAttackVarBoolean(attackVars, "aimAtFloor", true)
     setAttackVarBoolean(attackVars, "closeKill", false)
     setAttackVarBoolean(attackVars, "doShove", doShove)
+    setAttackVarWeaponForShove(player, attackVars, doShove)
 end
 
 local function getUseHandWeapon(player)
@@ -137,7 +179,7 @@ local function isBareHands(weapon)
 end
 
 local function shouldDoGroundShove(player)
-    if isKeyDown(SHOVE_STOMP_KEY) then return true end
+    if isShoveStompButtonDown(player) then return true end
 
     return isBareHands(getUseHandWeapon(player))
 end
@@ -163,13 +205,13 @@ local function applyAttackVars(player, doShove)
     end)
     if not attackVars then return end
 
-    setAttackVars(attackVars, doShove)
+    setAttackVars(player, attackVars, doShove)
 end
 
 local function forceGroundAttack(player, includeAttackVars)
     if not player then return end
 
-    if not isKeyDown(MANUAL_FLOOR_KEY) then
+    if not isManualFloorAttackDown(player) then
         if forcedPlayers[player] and not isPerformingAttack(player) then
             setAimAtFloor(player, false)
             setPlayerVariable(player, "AimFloorAnim", false)
