@@ -4,6 +4,7 @@ local SHOVE_STOMP_KEY = "Melee"
 
 local warned = {}
 local forcedPlayers = setmetatable({}, { __mode = "k" })
+local protectedCondition = setmetatable({}, { __mode = "k" })
 local attackVarFields = {}
 
 local function warnOnce(key, message)
@@ -71,6 +72,14 @@ end
 local function setDoShove(player, value)
     safeCall("setDoShove", function()
         player:setDoShove(value)
+    end)
+end
+
+local function getPrimaryHandItem(player)
+    if not player then return nil end
+
+    return safeCall("getPrimaryHandItem", function()
+        return player:getPrimaryHandItem()
     end)
 end
 
@@ -164,6 +173,91 @@ local function isBareHands(weapon)
     end) == true
 end
 
+local function snapshotCondition(item)
+    if not item then return nil end
+
+    local condition = safeCall("getCondition.protected", function()
+        return item:getCondition()
+    end)
+    if not condition then return nil end
+
+    local state = { item = item, condition = condition }
+    state.headCondition = safeCall("getHeadCondition.protected", function()
+        if item:hasHeadCondition() then
+            return item:getHeadCondition()
+        end
+        return nil
+    end)
+    state.sharpness = safeCall("getSharpness.protected", function()
+        if item:hasSharpness() then
+            return item:getSharpness()
+        end
+        return nil
+    end)
+
+    return state
+end
+
+local function protectPrimaryCondition(player)
+    local item = getPrimaryHandItem(player)
+    if not item then return end
+
+    local state = protectedCondition[player]
+    if state and state.item == item then return end
+
+    protectedCondition[player] = snapshotCondition(item)
+end
+
+local function restoreProtectedCondition(player)
+    local state = protectedCondition[player]
+    if not state or not state.item then return end
+
+    local item = state.item
+    local restored = false
+
+    local currentHeadCondition = safeCall("getHeadCondition.restore", function()
+        if item:hasHeadCondition() then
+            return item:getHeadCondition()
+        end
+        return nil
+    end)
+    if state.headCondition and currentHeadCondition and currentHeadCondition < state.headCondition then
+        safeCall("setHeadCondition.restore", function()
+            item:setHeadCondition(state.headCondition)
+        end)
+        restored = true
+    end
+
+    local currentCondition = safeCall("getCondition.restore", function()
+        return item:getCondition()
+    end)
+    if currentCondition and currentCondition < state.condition then
+        safeCall("setConditionNoSound.restore", function()
+            item:setConditionNoSound(state.condition)
+        end)
+        restored = true
+    end
+
+    local currentSharpness = safeCall("getSharpness.restore", function()
+        if item:hasSharpness() then
+            return item:getSharpness()
+        end
+        return nil
+    end)
+    if state.sharpness and currentSharpness and currentSharpness < state.sharpness then
+        safeCall("setSharpness.restore", function()
+            item:setSharpness(state.sharpness)
+        end)
+        restored = true
+    end
+
+    if restored then
+        safeCall("syncItemFields.restore", function()
+            item:syncItemFields()
+        end)
+    end
+end
+
 local function shouldDoGroundShove(player)
     if isShoveStompButtonDown(player) then return true end
 
@@ -197,17 +291,27 @@ end
 local function forceGroundAttack(player, includeAttackVars)
     if not player then return end
 
+    restoreProtectedCondition(player)
+
     if not isManualFloorAttackDown(player) then
         if forcedPlayers[player] and not isPerformingAttack(player) then
+            restoreProtectedCondition(player)
             setAimAtFloor(player, false)
             setPlayerVariable(player, "AimFloorAnim", false)
             setPlayerVariable(player, "isStompAnim", false)
+            protectedCondition[player] = nil
             forcedPlayers[player] = nil
         end
         return
     end
 
     local doShove = shouldDoGroundShove(player)
+    if doShove then
+        protectPrimaryCondition(player)
+    elseif not isPerformingAttack(player) then
+        protectedCondition[player] = nil
+    end
+
     setAimAtFloor(player, true)
     setDoShove(player, doShove)
     setPlayerVariable(player, "AimFloorAnim", true)
