@@ -11,4 +11,4 @@ Behavior:
 - Bare-hands attacks are treated as stomp/shove so the no-weapon path still attacks the ground.
 - The hook clears its forced animation variables after the key is released and the current attack is finished.
 
-The mod uses B42.19 public `AttackVars` fields directly and avoids runtime Java reflection helpers.
+The mod uses B42.19 `AttackVars` field names with reflected boolean setters to avoid noisy Kahlua public-field assignment failures, and uses the public `AttackVars:setWeapon(...)` method for stomp/shove weapon selection.
