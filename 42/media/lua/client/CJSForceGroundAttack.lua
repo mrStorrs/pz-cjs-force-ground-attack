@@ -5,6 +5,7 @@ local SHOVE_STOMP_KEY = "Melee"
 local warned = {}
 local forcedPlayers = setmetatable({}, { __mode = "k" })
 local attackVarFields = {}
+local playerFields = {}
 
 local function warnOnce(key, message)
     if warned[key] then return end
@@ -114,6 +115,40 @@ local function findAttackVarField(attackVars, fieldName)
     return nil
 end
 
+local function findPlayerField(player, fieldName)
+    if playerFields[fieldName] ~= nil then
+        return playerFields[fieldName] or nil
+    end
+
+    if not getNumClassFields or not getClassField then
+        warnOnce("missingPlayerReflection", "Reflection helpers are not available; IsoPlayer fields cannot be forced")
+        playerFields[fieldName] = false
+        return nil
+    end
+
+    local fieldCount = safeCall("getNumClassFields.IsoPlayer", function()
+        return getNumClassFields(player)
+    end)
+    if not fieldCount then
+        playerFields[fieldName] = false
+        return nil
+    end
+
+    for index = 0, fieldCount - 1 do
+        local field = safeCall("getClassField.IsoPlayer." .. tostring(index), function()
+            return getClassField(player, index)
+        end)
+        if field and tostring(field):match("%." .. fieldName .. "$") then
+            playerFields[fieldName] = field
+            return field
+        end
+    end
+
+    warnOnce("missingPlayerField." .. fieldName, "IsoPlayer." .. fieldName .. " field was not found")
+    playerFields[fieldName] = false
+    return nil
+end
+
 local function readAttackVarBoolean(attackVars, fieldName)
     if not getClassFieldVal then return nil end
 
@@ -144,6 +179,27 @@ local function setAttackVarBoolean(attackVars, fieldName, value)
 
     warnOnce("setAttackVars." .. fieldName, "Could not set AttackVars." .. fieldName)
     return false
+end
+
+local function setPlayerBoolean(player, fieldName, value)
+    if not player then return end
+
+    local field = findPlayerField(player, fieldName)
+    if not field then return false end
+
+    local ok = pcall(function()
+        field:setBoolean(player, value)
+    end)
+    if ok then
+        return true
+    end
+
+    warnOnce("setPlayerField." .. fieldName, "Could not set IsoPlayer." .. fieldName)
+    return false
+end
+
+local function setMeleePressed(player, value)
+    setPlayerBoolean(player, "meleePressed", value)
 end
 
 local function setAttackVars(attackVars, doShove)
@@ -224,6 +280,7 @@ local function forceGroundAttack(player, includeAttackVars)
 
     setAimAtFloor(player, true)
     setDoShove(player, doShove)
+    setMeleePressed(player, doShove)
     setPlayerVariable(player, "AimFloorAnim", true)
     setPlayerVariable(player, "isStompAnim", doShove)
 
