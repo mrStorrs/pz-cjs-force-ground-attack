@@ -40,9 +40,8 @@ local function isManualFloorAttackDown(player)
     local buttonDown = normalizeButtonDown(safeCall("isManualFloorAtkButtonDown", function()
         return player:isManualFloorAtkButtonDown()
     end))
-    if buttonDown ~= nil then return buttonDown end
 
-    return isBoundKeyDown(MANUAL_FLOOR_KEY)
+    return buttonDown == true or isBoundKeyDown(MANUAL_FLOOR_KEY)
 end
 
 local function isShoveStompButtonDown(player)
@@ -51,9 +50,8 @@ local function isShoveStompButtonDown(player)
     local buttonDown = normalizeButtonDown(safeCall("isMeleeButtonDown", function()
         return player:isMeleeButtonDown()
     end))
-    if buttonDown ~= nil then return buttonDown end
 
-    return isBoundKeyDown(SHOVE_STOMP_KEY)
+    return buttonDown == true or isBoundKeyDown(SHOVE_STOMP_KEY)
 end
 
 local function setPlayerVariable(player, name, value)
@@ -255,6 +253,10 @@ local function onTick()
     end)
 end
 
+local function onPlayerUpdate(player)
+    forceGroundAttack(player, true)
+end
+
 local function onCreatePlayer(_playerIndex, player)
     forceGroundAttack(player, false)
 end
@@ -265,6 +267,12 @@ end
 
 if Events and Events.OnCreatePlayer then
     Events.OnCreatePlayer.Add(onCreatePlayer)
+end
+
+if Events and Events.OnPlayerUpdate then
+    Events.OnPlayerUpdate.Add(onPlayerUpdate)
+else
+    warnOnce("missingOnPlayerUpdate", "Events.OnPlayerUpdate is not available")
 end
 
 if Events and Events.OnTick then
